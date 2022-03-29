@@ -1,17 +1,16 @@
 import torch
-from torch import nn, optim
-from torch.nn import functional as F 
+from torch import  nn
+from torch import optim
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets
-from torchvision import transforms 
-from collections import OrderedDict
+from torchvision import transforms
 
 input_size = 784
 num_classes = 10
 learning_rate = 0.001
 batch_size = 64
 num_epoch = 1 
-
 class CNN(nn.Module):
     def __init__(self, num_classes):
         super(CNN, self).__init__()
@@ -35,12 +34,13 @@ class CNN(nn.Module):
         out = self.fc(out)
         return out
 
+def save_checkpoint(state, filename="my_checkpoint_pth.tar"):
+    print(f"===> saving checkpoint to {filename}")
+    torch.save(state, filename)
+
 model = CNN(num_classes=10)
 x = torch.randn(64, 1, 28, 28)
-# print(model)
-# print(model(x).shape)
 
-# device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load train data
@@ -66,6 +66,10 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Train network
 for epoch in range(num_epoch):
+    checkpoint = {  'state_dict': model.state_dict(), 
+                    'optimizer': optimizer.state_dict(),
+                }
+    
     for batch_idx, (data, targets) in enumerate(train_loader):
         data = data.to(device=device)
         targets = targets.to(device=device)
@@ -83,14 +87,14 @@ for epoch in range(num_epoch):
 
         # gradient descent
         optimizer.step()
-
+    save_checkpoint(checkpoint)
 
 # check accuracy
 def check_accuracy(loader, model):
     num_correct = 0
     num_samples = 0
     model.eval()
-    
+
     with torch.no_grad():
         for x, y in loader:
             x = x.to(device=device)
@@ -101,10 +105,12 @@ def check_accuracy(loader, model):
             _, preds = scores.max(1)
             num_correct += (preds == y).sum()
             num_samples += preds.size(0)
+            acc = num_correct/float(num_samples)*100
 
-        print(f'accuracy: {float(num_correct)/float(num_samples)*100:.2f}')
-    
     model.train()
+    return acc
 
+print(f'train accuracy: {check_accuracy(train_loader, model)}')
+print(f'test accuracy: {check_accuracy(test_loader, model)}')
 check_accuracy(train_loader, model)
 check_accuracy(test_loader, model)
